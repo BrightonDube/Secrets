@@ -47,10 +47,10 @@ mongoose.connect(uri, {
 const userSchema = new mongoose.Schema({
     username: String,
     password: String,
-    googleId: String
-
+    googleId: String,
+    secret: String
 });
-//add passportLocalMongoose
+//add plugins
 userSchema.plugin(passportLocalMongoose);
 userSchema.plugin(findOrCreate);
 
@@ -62,15 +62,15 @@ const User = mongoose.model("User", userSchema);
 passport.use(User.createStrategy());
 
 // use static serialize and deserialize of model for passport session support
-passport.serializeUser(function(user, done) {
+passport.serializeUser((user, done) => {
     done(null, user.id);
-  });
-  
-  passport.deserializeUser(function(id, done) {
-    User.findById(id, function(err, user) {
-      done(err, user);
+});
+
+passport.deserializeUser((id, done)=>{
+    User.findById(id, (err, user)=>{
+        done(err, user);
     });
-  });
+});
 //Google Strategy
 passport.use(new GoogleStrategy({
     clientID: process.env.CLIENT_ID,
@@ -100,19 +100,42 @@ app.get("/register", (req, res) => {
     res.render("register");
 });
 
-app.get("/secrets", connectEnsureLogin.ensureLoggedIn(), (req, res) => {
-    res.render("secrets");
+app.get("/secrets",async (req, res) => {
+    await User.find({"secret": {$ne: null}},
+        (err, foundUsers)=>{
+            if (err) console.log(err);
+            else {
+                if (foundUsers) res.render("secrets", {usersWithSecrets: foundUsers});
+            } 
+        });
 });
+
 app.get("/submit", connectEnsureLogin.ensureLoggedIn(), (req, res) => {
 
     res.render("submit");
 
 });
-app.post("/submit", connectEnsureLogin.ensureLoggedIn, (req, res) => {
-    res.render("secrets"/*, secret : secrets*/);
+app.post("/submit", (req, res) => {
+    const submittedSecret = req.body.secret;
+   
+    if(req.isAuthenticated){
+    User.findById(req.user.id, (err, foundUser)=>{
+        if (err) console.log(err);
+        else{
+            if (foundUser){
+                foundUser.secret = submittedSecret;                
+                foundUser.save(()=>{
+                    res.redirect("/secrets");
+                });
+               
+            }
+        }
+    });
+    }
+    else redirect("/login");
 });
-app.post("/register", async (req, res) => {
-    await User.register({ username: req.body.username },
+app.post("/register", (req, res) => {
+    User.register({ username: req.body.username },
         req.body.password, (err, user) => {
             if (err) {
                 console.log(err);
@@ -123,32 +146,17 @@ app.post("/register", async (req, res) => {
                 });
             }
         });
-    // bcrypt.hash(req.body.password, saltRounds, async function (err, hash) {
-    //     // Store hash in your password DB.
-    //     const user = new User({
-    //         username: req.body.username,
-    //         password: hash
-    //     });
-    //     await user.save((err) => {
-    //         if (err) {
-    //             console.log(err);
-    //             if (err.code === 11000) res.send("The user exists");
-    //         } else res.render("secrets");
-    //     });
-
-    // });
-
 });
 
 app.get("/auth/google",
-  passport.authenticate("google", { scope: ["profile"] }));
+    passport.authenticate("google", { scope: ["profile"] }));
 
-app.get("/auth/google/secrets", 
-  passport.authenticate("google", { failureRedirect: "/login" }),
-  function(req, res) {
-    // Successful authentication, redirect home.
-    res.render("secrets");
-  });
+app.get("/auth/google/secrets",
+    passport.authenticate("google", { failureRedirect: "/login" }),
+    function (req, res) {
+        // Successful authentication, redirect home.
+        res.render("secrets");
+    });
 
 app.post("/login", async (req, res) => {
 
@@ -167,24 +175,6 @@ app.post("/login", async (req, res) => {
             });
         }
     });
-
-    // await User.findOne({
-    //     username: req.body.username
-    // }, (err, foundUser) => {
-    //     if (!err) {
-    //         if (!foundUser) res.send("invalid username or password");
-    //         else {
-    //             bcrypt.compare(req.body.password, foundUser.password, async (err, result) => {
-    //                 if (result) res.render("secrets");
-    //                 else res.send("Invalid username or password!");
-    //             });
-
-    //         }
-    //     }
-    //     else console.log(err);
-    // });
-
-
 });
 
 app.get("/logout", (req, res) => {
