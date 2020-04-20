@@ -14,6 +14,7 @@ const passportLocalMongoose = require("passport-local-mongoose");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const findOrCreate = require('mongoose-findorcreate');
 const flash = require('connect-flash');
+const FacebookStrategy = require('passport-facebook').Strategy;
 
 /**
  *  App Configuration
@@ -50,6 +51,7 @@ const userSchema = new mongoose.Schema({
     username: String,
     password: String,
     googleId: String,
+    facebookId: String,
     secret: String
 });
 //add plugins
@@ -81,12 +83,25 @@ passport.use(new GoogleStrategy({
     userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo"
 },
     function (accessToken, refreshToken, profile, cb) {
-        console.log(profile);
+        //console.log(profile);
         User.findOrCreate({ googleId: profile.id }, function (err, user) {
             return cb(err, user);
         });
     }
 ));
+
+passport.use(new FacebookStrategy({
+    clientID: process.env.FACEBOOK_APP_ID,
+    clientSecret: process.env.FACEBOOK_APP_SECRET,
+    callbackURL: "http://localhost:9090/auth/facebook/callback"
+},
+    function (accessToken, refreshToken, profile, cb) {
+        User.findOrCreate({ facebookId: profile.id }, function (err, user) {
+            return cb(err, user);
+        });
+    }
+));
+
 //ROUTES
 const connectEnsureLogin = require('connect-ensure-login');
 app.get("/", (req, res) => {
@@ -160,11 +175,21 @@ app.get("/auth/google/secrets",
         res.redirect("/secrets");
     });
 
+app.get("/auth/facebook", passport.authenticate("facebook"));
+
+app.get("/auth/facebook/callback",
+    passport.authenticate("facebook", { failureRedirect: "/login" }),
+    function (req, res) {
+        // Successful authentication, redirect home.
+        res.redirect("/secrets");
+    });
+
+
 app.post("/login",
     passport.authenticate("local", {
         successRedirect: "/secrets",
         failureRedirect: "/login",
-        failureFlash: true//"invalid username or password"
+        failureFlash: true //"invalid username or password"
     })
 );
 // app.post('/login', function(req, res, next) {
