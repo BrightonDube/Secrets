@@ -20,7 +20,11 @@
             </div>
             <button type="submit" class="btn btn-dark">Login</button>
           </form>
-
+          <br>
+          <% if (message) { %>
+            <p class="alert-danger" role="alert"><%=message%></p>       
+          <%}%>
+         
         </div>
       </div>
     </div>
