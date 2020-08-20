@@ -11,7 +11,7 @@
   "description": "",
   "dependencies": {
     "@types/connect-ensure-login": "^0.1.5",
-    "bcrypt": "^4.0.1",
+    "bcrypt": "^5.0.0",
     "connect-ensure-login": "^0.1.1",
     "connect-flash": "^0.1.1",
     "connect-mongo": "^3.2.0",
